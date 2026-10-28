@@ -129,6 +129,9 @@ const fmt=n=>'฿'+(Math.round(n*100)/100).toLocaleString('th-TH',{minimumFracti
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const daysSince=d=>Math.max(0,Math.floor((Date.now()-new Date(d))/864e5));
+const VER='2026-10-28c';
+function checkUpdate(){fetch(location.pathname+'?t='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(h=>{const m=h.match(/const VER='([^']+)'/);if(m&&m[1]!==VER)location.replace(location.pathname+'?v='+m[1]+location.hash)}).catch(()=>{})}
+setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
 const uid=()=>Math.random().toString(36).slice(2,9);
 
 function sample(){
