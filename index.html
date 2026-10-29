@@ -129,7 +129,7 @@ const fmt=n=>'฿'+(Math.round(n*100)/100).toLocaleString('th-TH',{minimumFracti
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const daysSince=d=>Math.max(0,Math.floor((Date.now()-new Date(d))/864e5));
-const VER='2026-10-28d';
+const VER='2026-10-29a';
 function checkUpdate(){fetch(location.pathname+'?t='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(h=>{const m=h.match(/const VER='([^']+)'/);if(m&&m[1]!==VER)location.replace(location.pathname+'?v='+m[1]+location.hash)}).catch(()=>{})}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -366,7 +366,9 @@ cards(){
   ${S.cards.map(c=>{const u=c.limit?Math.min(100,c.bal/c.limit*100):0;return `<div class="card"><div class="row"><b>💳 ${esc(c.name)}</b><b class="num">${fmt(c.bal)}</b></div>
    <div class="bar"><i style="width:${u}%;background:${u>70?'var(--warn)':'var(--accent)'}"></i></div>
    <div class="row muted" style="font-size:12px"><span>ใช้ ${Math.round(u)}% ของ ${fmt(c.limit)} · ${c.apr}%/ปี · ขั้นต่ำ ${fmt(cardMin(c))}</span><span>ครบทุกวันที่ ${c.due}</span></div>
-   <div class="row"><input aria-label="อัปเดตยอด ${esc(c.name)}" inputmode="decimal" data-bal="${c.id}" value="${c.bal}" style="height:38px"><button class="btn sm ghost" data-del-card="${c.id}">ลบบัตร</button></div></div>`}).join('')||'<div class="card muted">ยังไม่มีบัตร เพิ่มบัตรแรกด้านล่าง</div>'}
+   <form class="row nowrap" data-cardpay="${c.id}" style="gap:6px"><input name="a" inputmode="decimal" placeholder="จ่ายไปกี่บาท" required style="flex:1;min-width:0;height:38px"><input name="d" type="date" value="${today()}" style="width:132px;height:38px"><button class="btn sm">💸 จ่าย</button></form>
+   ${(c.pays||[]).slice(-3).reverse().map((p,i,a)=>`<div class="row nowrap muted" style="justify-content:space-between;font-size:13px"><span>✅ จ่าย ${new Date(p.date+'T00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</span><span class="row nowrap" style="gap:6px"><span class="num">−${fmt(p.amt)}</span>${i===0?`<button class="btn sm ghost" data-cardundo="${c.id}" aria-label="ยกเลิกรายการนี้">↩︎</button>`:''}</span></div>`).join('')}
+   <details><summary class="muted" style="font-size:13px">แก้ยอดค้างตรงๆ / ลบบัตร</summary><div class="row" style="margin-top:6px"><input aria-label="อัปเดตยอด ${esc(c.name)}" inputmode="decimal" data-bal="${c.id}" value="${c.bal}" style="height:38px"><button class="btn sm ghost" data-del-card="${c.id}">ลบบัตร</button></div></details></div>`}).join('')||'<div class="card muted">ยังไม่มีบัตร เพิ่มบัตรแรกด้านล่าง</div>'}
   <button class="btn ghost" data-go="slf" style="width:100%">🎓 ดู กยศ</button>
   <form class="card" id="addCard"><h2 style="margin:0">➕ เพิ่มบัตร</h2>
    <div class="f2"><label>ชื่อบัตร<input id="cn" required></label><label>ยอดค้าง<input id="cb" inputmode="decimal" required></label>
@@ -626,6 +628,7 @@ app.addEventListener('click',async e=>{
   if(d.slipday){slip.day=d.slipday;render()}
   if(d.act==='carryEdit'){const box=t.closest('.card');if(box.querySelector('#carryF'))return;t.closest('.row').parentElement.insertAdjacentHTML('afterend',`<form id="carryF" class="row nowrap" style="gap:6px"><input name="v" inputmode="text" value="${carryAmt()}" placeholder="เช่น 1500 หรือ -800" style="flex:1;min-width:0"><button class="btn sm">บันทึก</button><button type="button" class="btn sm ghost" data-act="carryAuto">อัตโนมัติ</button></form><div class="muted" style="font-size:12px">ใส่ติดลบ ถ้าเดือนก่อนใช้เกิน</div>`);box.querySelector('#carryF input').focus()}
   if(d.act==='carryAuto'){delete S.carryFix;save();render();toast('กลับไปคำนวณอัตโนมัติ')}
+  if(d.cardundo){const c=S.cards.find(x=>x.id===d.cardundo);const p=c&&(c.pays||[]).pop();if(p){c.bal=Math.round((c.bal+p.amt)*100)/100;save();render();toast('ยกเลิกแล้ว')}}
   if(d.billdel){S.bills=(S.bills||[]).filter(x=>x.id!==d.billdel);save();render();toast('ลบแล้ว')}
   if(d.billpay){const k=(S.bills||[]).find(x=>x.id===d.billpay);if(k){S.expenses.unshift({id:uid(),date:today(),title:k.title,cat:k.cat||'บิล',amt:k.amt});S.bills=S.bills.filter(x=>x!==k);save();render();toast('ย้ายไปรายจ่ายวันนี้แล้ว')}}
   if(d.delCard){S.cards=S.cards.filter(x=>x.id!==d.delCard);save();render()}
@@ -667,6 +670,7 @@ app.addEventListener('submit',e=>{
   if(f.id==='addCat'){const v=f.querySelector('#newCat').value.trim();if(v&&!S.cats.includes(v)){S.cats.push(v);fixIcons();S.catIcons[v]=newEmoji;newEmoji='✨';save();render()}return}
   if(f.dataset.split){const e=S.expenses.find(x=>x.id===f.dataset.split);const names=f.querySelector('input').value.trim().split(/[\s,]+/).filter(Boolean);if(e&&names.length){const each=splitExpense(e,names);save();render();toast(`หารแล้ว · เพื่อนค้างคนละ ${fmt(each)}`)}return}
   if(f.id==='carryF'){const v=parseFloat(String(f.v.value).replace(/[,฿\s]/g,'').replace('−','-'))||0;S.carryFix={cyc:iso(cycleStart()),v};S.carryOn=true;save();render();toast('บันทึกยอดยกมาแล้ว');return}
+  if(f.dataset.cardpay){const c=S.cards.find(x=>x.id===f.dataset.cardpay),a=num(f.a.value);if(c&&a>0){(c.pays=c.pays||[]).push({amt:a,date:f.d.value||today()});c.bal=Math.max(0,Math.round((c.bal-a)*100)/100);save();render();toast(`ยอดค้าง ${c.name} เหลือ ${fmt(c.bal)}`)}return}
   if(f.id==='addBill'){const a=num(f.a.value);if(a>0){(S.bills=S.bills||[]).push({id:uid(),title:f.t.value.trim(),amt:a,cat:'บิล'});save();render();toast('เพิ่มบิลค้างแล้ว')}return}
   if(f.id==='quick'){addQuick(f.querySelector('#q').value)}
   if(f.id==='slfFix'){['balance','interest','penalty','overdue','limit','feeTotal'].forEach(k=>{if(f[k].value!=='')S.slf[k]=num(f[k].value)});S.slf.asOf=today();save();render();toast('บันทึกยอดแล้ว');return}
