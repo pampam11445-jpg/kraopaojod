@@ -129,7 +129,7 @@ const fmt=n=>'฿'+(Math.round(n*100)/100).toLocaleString('th-TH',{minimumFracti
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const daysSince=d=>Math.max(0,Math.floor((Date.now()-new Date(d))/864e5));
-const VER='2026-10-30a';
+const VER='2026-10-30b';
 function checkUpdate(){fetch(location.pathname+'?t='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(h=>{const m=h.match(/const VER='([^']+)'/);if(m&&m[1]!==VER)location.replace(location.pathname+'?v='+m[1]+location.hash)}).catch(()=>{})}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -564,7 +564,7 @@ function importFromUrl(){
 }
 function slipCard(){
   const it=slip.items;
-  const pick=`<label class="btn" style="display:flex;align-items:center;justify-content:center;gap:6px;color:#fff;cursor:pointer;width:100%">📸 เลือกสลิปจากคลังรูป<input id="slipPick" type="file" accept="image/*" multiple hidden></label><a class="btn ghost" href="shortcuts://run-shortcut?name=${encodeURIComponent('ดึงสลิป')}" style="display:flex;align-items:center;justify-content:center;gap:6px;color:var(--fg);text-decoration:none;width:100%">▶️ รันคำสั่งลัด “ดึงสลิป”</a>`;
+  const pick=`<label class="btn" style="display:flex;align-items:center;justify-content:center;gap:6px;color:#fff;cursor:pointer;width:100%">📸 เลือกสลิปจากคลังรูป<input id="slipPick" type="file" accept="image/*" multiple hidden></label><a class="btn ghost" href="shortcuts://run-shortcut?name=${encodeURIComponent('ดึงสลิป')}" style="display:flex;align-items:center;justify-content:center;gap:6px;color:var(--fg);text-decoration:none;width:100%">▶️ รันคำสั่งลัด “ดึงสลิป”</a><button class="btn ghost" data-act="slipPaste" style="width:100%;margin-top:8px">📋 วางสลิปที่คำสั่งลัดคัดลอกไว้</button>`;
   if(ocr.busy)return `<div class="card"><b>📸 กำลังอ่านสลิป</b><div class="bar"><i style="width:${ocr.pct}%"></i></div><span class="muted" style="font-size:13px">${esc(ocr.msg)}</span></div>`;
   if(!it.length&&!slip.msg)return `<div class="card"><b>📸 ดึงสลิป</b>${pick}<span class="muted" style="font-size:12px">เลือกได้หลายรูปพร้อมกัน แอปอ่านสลิปในเครื่อง ไม่ส่งรูปออกไปไหน · หรือใช้ Shortcut “ดึงสลิป” ก็ได้</span></div>`;
   const days=[...new Set(it.map(x=>x.date))].sort().reverse();
@@ -643,6 +643,7 @@ app.addEventListener('click',async e=>{
   if(d.cardundo){const c=S.cards.find(x=>x.id===d.cardundo);const p=c&&(c.pays||[]).pop();if(p){if(p.exp)S.expenses=S.expenses.filter(e=>e.id!==p.exp);c.bal=Math.round((c.bal+p.amt)*100)/100;save();render();toast('ยกเลิกแล้ว')}}
   if(d.act==='incToggle'){S.incOpen=!S.incOpen;save();render();if(S.incOpen){const i=document.querySelector('#addInc input');i&&i.focus()}}
   if(d.incdel){S.incomes=(S.incomes||[]).filter(x=>x.id!==d.incdel);save();render();toast('ลบแล้ว')}
+  if(d.act==='slipPaste'){try{const t=(await navigator.clipboard.readText()||'').trim();if(!t){toast('คลิปบอร์ดว่าง ลองรันคำสั่งลัดก่อน');return}location.hash='slip='+encodeURIComponent(t.replace(/^.*#slip=/,'').includes('%')?decodeURIComponent(t.replace(/^.*#slip=/,'')):t);importFromUrl();render()}catch(err){toast('กด "อนุญาต/วาง" เพื่อให้แอปอ่านคลิปบอร์ด')}}
   if(d.billdel){S.bills=(S.bills||[]).filter(x=>x.id!==d.billdel);save();render();toast('ลบแล้ว')}
   if(d.billpay){const k=(S.bills||[]).find(x=>x.id===d.billpay);if(k){S.expenses.unshift({id:uid(),date:today(),title:k.title,cat:k.cat||'บิล',amt:k.amt});S.bills=S.bills.filter(x=>x!==k);save();render();toast('ย้ายไปรายจ่ายวันนี้แล้ว')}}
   if(d.delCard){S.cards=S.cards.filter(x=>x.id!==d.delCard);save();render()}
