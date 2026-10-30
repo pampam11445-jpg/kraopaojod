@@ -129,7 +129,7 @@ const fmt=n=>'฿'+(Math.round(n*100)/100).toLocaleString('th-TH',{minimumFracti
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const daysSince=d=>Math.max(0,Math.floor((Date.now()-new Date(d))/864e5));
-const VER='2026-10-29c';
+const VER='2026-10-30a';
 function checkUpdate(){fetch(location.pathname+'?t='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(h=>{const m=h.match(/const VER='([^']+)'/);if(m&&m[1]!==VER)location.replace(location.pathname+'?v='+m[1]+location.hash)}).catch(()=>{})}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -223,14 +223,23 @@ function prevCycle(){const s=cycleStart(),a=new Date(s.getFullYear(),s.getMonth(
 function prevSpend(){const [a,b]=prevCycle();return S.expenses.filter(e=>e.date>=a&&e.date<b).reduce((x,e)=>x+e.amt,0)}
 function carryAmt(){const f=S.carryFix;if(f&&f.cyc===iso(cycleStart()))return f.v;return S.budget?S.budget-prevSpend():0}
 function effBudget(){return S.budget+(S.carryOn?carryAmt():0)}
+function incomeCard(){
+  const cs=iso(cycleStart()),list=(S.incomes||[]).filter(i=>i.date>=cs).sort((a,b)=>a.date<b.date?1:-1);
+  const inc=list.reduce((a,i)=>a+i.amt,0),spent=monthSpend(),net=inc-spent,open=S.incOpen;
+  const ICS={'เงินเดือน':'💼','งานเสริม':'🛠️','โอนเข้า':'📲','ขายของ':'🛍️','คืนเงิน':'↩️','อื่นๆ':'💰'};
+  return `<section class="card" style="gap:10px"><div class="row nowrap" style="justify-content:space-between"><h2 style="margin:0">💵 รายรับรอบนี้</h2><button class="btn sm ${open?'':'ghost'}" data-act="incToggle">${open?'ปิด':'➕ เพิ่มรายรับ'}</button></div>
+  <div class="grid3" style="grid-template-columns:1fr 1fr 1fr"><div><div class="muted" style="font-size:12px">รับเข้า</div><b class="num" style="color:var(--good)">${fmt(inc)}</b></div><div><div class="muted" style="font-size:12px">จ่ายออก</div><b class="num" style="color:var(--warn)">${fmt(spent)}</b></div><div><div class="muted" style="font-size:12px">คงเหลือสุทธิ</div><b class="num" style="color:${net>=0?'var(--good)':'var(--bad)'}">${net<0?'−':''}${fmt(Math.abs(net))}</b></div></div>
+  ${open?`<form id="addInc" style="display:flex;flex-direction:column;gap:6px"><div class="row nowrap" style="gap:6px"><input name="t" placeholder="เช่น เงินเดือน ต.ค." required style="flex:1;min-width:0"><input name="a" inputmode="decimal" placeholder="ยอด" required style="width:96px"></div><div class="row nowrap" style="gap:6px"><select name="c" style="flex:1;min-width:0">${Object.keys(ICS).map(k=>`<option>${k}</option>`).join('')}</select><input name="d" type="date" value="${today()}" style="width:140px"><button class="btn sm">บันทึก</button></div></form>`:''}
+  ${list.map(i=>`<div class="row nowrap" style="justify-content:space-between;gap:6px;font-size:14px"><span style="min-width:0">${ICS[i.cat]||'💰'} ${esc(i.title)} <span class="muted">· ${new Date(i.date+'T00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</span></span><span class="row nowrap" style="gap:6px"><b class="num" style="color:var(--good);white-space:nowrap">+${fmt(i.amt)}</b><button class="btn sm ghost" data-incdel="${i.id}" aria-label="ลบ">✕</button></span></div>`).join('')||'<div class="muted" style="font-size:13px">ยังไม่มีรายรับในรอบนี้</div>'}
+  </section>`}
 function carryCard(){
   const c=carryAmt(),[a,b]=prevCycle(),cs=iso(cycleStart());
   const debt=S.cards.reduce((x,k)=>x+k.bal,0);
   const oldIou=S.ious.filter(i=>i.date<cs&&i.amt-i.paid>0.004),iouAmt=oldIou.reduce((x,i)=>x+i.amt-i.paid,0);
   const bills=S.bills||[],billAmt=bills.reduce((x,k)=>x+k.amt,0);
-  const line=(ic,t,v,col,sub='',btn='')=>`<div class="row nowrap" style="justify-content:space-between;gap:8px"><div style="min-width:0"><div>${ic} ${t}</div>${sub?`<div class="muted" style="font-size:12px">${sub}</div>`:''}</div><div class="row nowrap" style="gap:6px"><b class="num" style="white-space:nowrap;color:${col}">${v}</b>${btn}</div></div>`;
+  const line=(ic,t,v,col,sub='',btn='')=>`<div class="row nowrap" style="justify-content:space-between;gap:8px"><div style="min-width:0;flex:1"><div>${ic} ${t}</div>${sub?`<div class="muted" style="font-size:12px">${sub}</div>`:''}</div><div class="row nowrap" style="gap:6px;flex-shrink:0"><b class="num" style="white-space:nowrap;color:${col}">${v}</b>${btn}</div></div>`;
   return `<section class="card" style="gap:10px"><h2 style="margin:0">📌 ค้างจากเดือนก่อน</h2>
-  ${S.budget||S.carryFix?line(c>=0?'💰':'🔥',c>=0?'ยอดยกมา (เหลือ)':'ยอดยกมา (เกินงบ)',(c>=0?'+':'−')+fmt(Math.abs(c)),c>=0?'var(--good)':'var(--bad)',(S.carryFix&&S.carryFix.cyc===iso(cycleStart())?'แก้เองแล้ว · ':'คำนวณอัตโนมัติ · ')+`ใช้ไป ${fmt(prevSpend())} จากงบ ${fmt(S.budget)}`,`<button class="btn sm ghost" data-act="carryEdit" aria-label="แก้ยอดยกมา">✏️</button>`+`<button class="btn sm ${S.carryOn?'':'ghost'}" data-sw="carryOn">${S.carryOn?'✓ ยกมาแล้ว':'ยกมาเดือนนี้'}</button>`):''}
+  ${S.budget||S.carryFix?line(c>=0?'💰':'🔥',c>=0?'ยอดยกมา (เหลือ)':'ยอดยกมา (เกินงบ)',(c>=0?'+':'−')+fmt(Math.abs(c)),c>=0?'var(--good)':'var(--bad)',(S.carryFix&&S.carryFix.cyc===iso(cycleStart())?'แก้เองแล้ว · ':'คำนวณอัตโนมัติ · ')+`ใช้ไป ${fmt(prevSpend())} จากงบ ${fmt(S.budget)}`,`<button class="btn sm ghost" data-act="carryEdit" aria-label="แก้ยอดยกมา">✏️</button>`+`<button class="btn sm ${S.carryOn?'':'ghost'}" data-sw="carryOn" style="white-space:nowrap">${S.carryOn?'✓ ยกมา':'ยกมา'}</button>`):''}
   ${line('💳','บัตรเครดิตค้าง',fmt(debt),debt?'var(--warn)':'var(--good)',S.cards.length+' ใบ',debt?`<button class="btn sm ghost" data-go="cards">ดู</button>`:'')}
   ${line('👥','เพื่อนยังไม่คืน (ก่อนรอบนี้)',fmt(iouAmt),iouAmt?'var(--warn)':'var(--good)',[...new Set(oldIou.map(i=>i.name))].join(', ')||'ไม่มี',iouAmt?`<button class="btn sm ghost" data-go="friends">ดู</button>`:'')}
   <div style="border-top:1px solid var(--line,#ffffff1a);padding-top:8px">${line('🧾','บิลค้างจ่าย',fmt(billAmt),billAmt?'var(--bad)':'var(--good)',bills.length?'':'ยังไม่มี')}
@@ -319,6 +328,7 @@ home(){
   <section class="hero"><div class="muted" class="hl">ใช้ไปรอบนี้ (ตั้งแต่ ${cycleStart().toLocaleDateString('th-TH',{day:'numeric',month:'short'})})</div><div class="big num">${fmt(spent)}</div>
    <div class="bar" style="background:#1B2A55"><i style="width:${pct}%"></i></div>
    <div class="row" style="font-size:13px;color:var(--hl)"><span>${Math.round(pct)}% ของงบ ${fmt(B)}${S.carryOn&&S.budget?' (รวมยอดยกมา)':''}</span><span>เหลือ ${fmt(Math.max(0,B-spent))}</span></div></section>
+  ${incomeCard()}
   ${carryCard()}
   <div class="grid3">
    <button class="mini" data-go="friends"><span>👥 เพื่อนค้าง</span><b class="num" style="color:var(--accent2)">${fmt(iouLeft())}</b></button>
@@ -631,6 +641,8 @@ app.addEventListener('click',async e=>{
   if(d.act==='carryEdit'){const box=t.closest('.card');if(box.querySelector('#carryF'))return;t.closest('.row').parentElement.insertAdjacentHTML('afterend',`<form id="carryF" class="row nowrap" style="gap:6px"><input name="v" inputmode="text" value="${carryAmt()}" placeholder="เช่น 1500 หรือ -800" style="flex:1;min-width:0"><button class="btn sm">บันทึก</button><button type="button" class="btn sm ghost" data-act="carryAuto">อัตโนมัติ</button></form><div class="muted" style="font-size:12px">ใส่ติดลบ ถ้าเดือนก่อนใช้เกิน</div>`);box.querySelector('#carryF input').focus()}
   if(d.act==='carryAuto'){delete S.carryFix;save();render();toast('กลับไปคำนวณอัตโนมัติ')}
   if(d.cardundo){const c=S.cards.find(x=>x.id===d.cardundo);const p=c&&(c.pays||[]).pop();if(p){if(p.exp)S.expenses=S.expenses.filter(e=>e.id!==p.exp);c.bal=Math.round((c.bal+p.amt)*100)/100;save();render();toast('ยกเลิกแล้ว')}}
+  if(d.act==='incToggle'){S.incOpen=!S.incOpen;save();render();if(S.incOpen){const i=document.querySelector('#addInc input');i&&i.focus()}}
+  if(d.incdel){S.incomes=(S.incomes||[]).filter(x=>x.id!==d.incdel);save();render();toast('ลบแล้ว')}
   if(d.billdel){S.bills=(S.bills||[]).filter(x=>x.id!==d.billdel);save();render();toast('ลบแล้ว')}
   if(d.billpay){const k=(S.bills||[]).find(x=>x.id===d.billpay);if(k){S.expenses.unshift({id:uid(),date:today(),title:k.title,cat:k.cat||'บิล',amt:k.amt});S.bills=S.bills.filter(x=>x!==k);save();render();toast('ย้ายไปรายจ่ายวันนี้แล้ว')}}
   if(d.delCard){S.cards=S.cards.filter(x=>x.id!==d.delCard);save();render()}
@@ -655,6 +667,7 @@ app.addEventListener('click',async e=>{
     const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
     const rows=[['ประเภท','วันที่','รายการ','หมวด','ยอด','จ่ายแล้ว']];
     S.expenses.forEach(e=>rows.push(['รายจ่าย',e.date,e.title,e.cat||'',e.amt,'']));
+    (S.incomes||[]).forEach(i=>rows.push(['รายรับ',i.date,i.title,i.cat,i.amt,'']));
     S.ious.forEach(i=>rows.push(['เพื่อนค้าง: '+i.name,i.date,i.note,'',i.amt,i.paid]));
     S.cards.forEach(c=>rows.push(['บัตรเครดิต','',c.name,`ดอก ${c.apr}% ครบวันที่ ${c.due}`,c.bal,'']));
     const blob=new Blob(['\ufeff'+rows.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
@@ -673,6 +686,7 @@ app.addEventListener('submit',e=>{
   if(f.dataset.split){const e=S.expenses.find(x=>x.id===f.dataset.split);const names=f.querySelector('input').value.trim().split(/[\s,]+/).filter(Boolean);if(e&&names.length){const each=splitExpense(e,names);save();render();toast(`หารแล้ว · เพื่อนค้างคนละ ${fmt(each)}`)}return}
   if(f.id==='carryF'){const v=parseFloat(String(f.v.value).replace(/[,฿\s]/g,'').replace('−','-'))||0;S.carryFix={cyc:iso(cycleStart()),v};S.carryOn=true;save();render();toast('บันทึกยอดยกมาแล้ว');return}
   if(f.dataset.cardpay){const c=S.cards.find(x=>x.id===f.dataset.cardpay),a=num(f.a.value);if(c&&a>0){(c.pays=c.pays||[]).push({amt:a,date:f.d.value||today()});const pid=uid();const ae=S.cardAsExp!==false;if(ae)S.expenses.unshift({id:pid,date:f.d.value||today(),title:'จ่ายบัตร '+c.name,cat:'บิล',amt:a});c.pays[c.pays.length-1].exp=ae?pid:null;c.bal=Math.max(0,Math.round((c.bal-a)*100)/100);save();render();toast(`ยอดค้าง ${c.name} เหลือ ${fmt(c.bal)}`)}return}
+  if(f.id==='addInc'){const a=num(f.a.value);if(a>0){(S.incomes=S.incomes||[]).push({id:uid(),title:f.t.value.trim(),amt:a,cat:f.c.value,date:f.d.value||today()});S.incOpen=false;save();render();toast('บันทึกรายรับแล้ว')}return}
   if(f.id==='addBill'){const a=num(f.a.value);if(a>0){(S.bills=S.bills||[]).push({id:uid(),title:f.t.value.trim(),amt:a,cat:'บิล'});save();render();toast('เพิ่มบิลค้างแล้ว')}return}
   if(f.id==='quick'){addQuick(f.querySelector('#q').value)}
   if(f.id==='slfFix'){['balance','interest','penalty','overdue','limit','feeTotal'].forEach(k=>{if(f[k].value!=='')S.slf[k]=num(f[k].value)});S.slf.asOf=today();save();render();toast('บันทึกยอดแล้ว');return}
